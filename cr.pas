@@ -1,20 +1,30 @@
 program CarReaction;
 uses crt;
 type
+	GameSide = (left, right);
+
 	GameCar = record
 		CurX, CurY: integer;
 		Symb: char;
+		Side: GameSide;
 	end;
+
 	GameMap = record
 		HomeX, HomeY: integer; 
 		CurX, CurY: integer;	
-	end;	
+	end;
+
 	GameProp = record
 		HomeX, HomeY: integer;
 		CurX, CurY: integer;
-		Size: integer; { циклом отрисовывается }
+		Size: integer;
 		Symb: char;
+		Side: GameSide;
 	end;
+var
+	SpeedTarget: integer;
+	SpeedDelay: integer;
+	Driven: integer;
 
 procedure IOresult_check;
 var
@@ -32,9 +42,7 @@ begin
 	end;
 end;
 
-{ procedure zeroing_all; } { TODO } 
-
-procedure ScreenCheck;
+procedure ScreenCheck; { Check screen for accepted size }
 var
 	x, y: integer;
 begin
@@ -46,7 +54,7 @@ begin
 		write('Please, resize your terminal to 60x25 or more');
 		halt(2);
 	end;
-	if ScreenHeight < 25 then { Screen Check } 
+	if ScreenHeight < 25 then
 	begin
 		x := (ScreenWidth - 44) div 2;
 		y := ScreenHeight div 2;
@@ -56,7 +64,7 @@ begin
 	end;
 end;
 
-procedure StartMessage;
+procedure StartMessage; { Message in begin of game }
 var
 	i, x, y: integer;
 	locmsg: string;
@@ -75,7 +83,7 @@ begin
 	delay(1000);
 end;
 
-procedure WantToPlay;
+procedure WantToPlay;  { Ask about start game }
 var
 	x, y: integer;
 	ch: char;
@@ -103,13 +111,31 @@ begin
 	end;
 end;
 
-procedure zeroing_all; {TODO}
+procedure zeroing_all(var map: GameMap; var car: GameCar; var prop: GameProp); { Zeroing variables }
 begin
+	SpeedDelay := 100;
+	SpeedTarget := 100;
+
+	map.HomeX := (ScreenWidth - 32) div 2;
+	map.HomeY := (ScreenHeight - 22) div 2;
+	map.CurX := map.HomeX;
+	map.CurY := map.HomeY;
+
+	car.Symb := 'I';
+	car.CurX := 1;
+	car.CurY := 1;
+
+	prop.Symb := '-';
+	prop.Size := 14;
+	prop.HomeY := map.HomeY;
+	prop.CurX := map.HomeX + 1;
+	prop.CurY := prop.HomeY; 
+	prop.Side := left;
 end;
 {--------------------------------------------------------}
-procedure DrawMap(var map: GameMap);
+procedure DrawMap(var map: GameMap); { Drawing game map }
 var
-	i: integer; {16 расстояние между рядами, 5 между полосками}
+	i: integer;
 begin
 	GotoXY(map.HomeX, map.HomeY);
 	for i := 1 to 20 do	
@@ -125,43 +151,176 @@ begin
 		GotoXY(map.HomeX, map.CurY);
 	end;
 end;
+{-----------------------------------------------}
+procedure ShowCar(car: GameCar);
+begin
+	GotoXY(car.CurX, car.CurY);
+	write(car.Symb);
 
+end;
 
+procedure HideCar(car: GameCar);
+begin
+	GotoXY(car.CurX, car.CurY);
+	write(' ');
+end;
+
+procedure MoveCar(var car: GameCar; map: GameMap);
+begin
+	HideCar(car);
+	case car.Side of
+		left:
+			begin
+				car.CurX := map.HomeX + 9;
+				car.CurY := map.HomeY + 16;
+				ShowCar(car);
+			end;
+		right:
+			begin
+				car.CurX := map.HomeX + 26;
+				car.CurY := map.HomeY + 16;
+				ShowCar(car);
+			end;
+	end;
+
+end;
+
+procedure HandleArrowKey(var car: GameCar; map: GameMap; ch: char);
+begin
+	case ch of
+	#97: car.Side := left;
+	#100: car.Side := right;
+	end;
+	MoveCar(car, map);
+end;
+{-----------------------------------------------}
+procedure ShowProp(prop: GameProp);
+var
+	i: integer;
+begin
+	GotoXY(prop.CurX, prop.CurY);
+	for i := 1 to prop.Size do
+		write(prop.Symb);
+end;
+
+procedure HideProp(prop: GameProp);
+var
+	i: integer;
+begin
+	GotoXY(prop.CurX, prop.CurY);
+	for i := 1 to prop.Size do
+		write(' ');
+end;
+
+procedure MoveProp(var prop: GameProp; map: GameMap);
+begin
+	HideProp(prop);
+	prop.CurY := prop.CurY + 1;
+	Driven := Driven + 1;
+	case prop.Side of
+		left: prop.CurX := map.HomeX + 1;
+		right: prop.CurX := map.HomeX + 20;
+	end;	
+	ShowProp(prop);
+end;
+{------------------------------------------------}
+procedure CollisionChecker(car: GameCar; var prop: GameProp);
+var
+	x, y: integer;
+	i: integer;
+begin
+	if prop.CurY + 1 = car.CurY then
+	begin
+		if prop.Side = car.Side then
+		begin
+			delay(2000);
+			clrscr;
+			x := (ScreenWidth - 17) div 2;
+			y := ScreenHeight div 2;
+			GotoXY(x, y);
+			write('You driven: ', Driven, 'm');
+			y := y + 1;
+			GotoXY(x, y);
+			write('Enter to exit...');
+			readln;
+			halt(0);
+		end;
+	end;
+	
+	if prop.CurY + 1 = car.CurY then
+	begin
+		HideProp(prop);
+		prop.CurY := prop.HomeY;
+		i := random(2);
+		case i of
+			0: prop.Side := left;
+			1: prop.Side := right;
+		end;
+ 	end;
+end;
+
+{-----------------------------------------------}
+
+procedure SpeedUp;
+var
+	i: single;
+begin
+	i := SpeedDelay;
+	if Driven > SpeedTarget then
+	begin
+		i := i * 0.9;
+		SpeedDelay := round(i);
+		SpeedTarget := SpeedTarget + 100;
+	end;
+end;
+
+procedure output_Driven;
+var
+	x, y: integer;
+begin
+	if Driven mod 10 = 0 then
+	begin
+		x := (ScreenWidth - 13) div 2;
+		y := 1;
+		GotoXY(x, y);
+		write('Driven: ', Driven, 'm');
+	end;
+end;
+
+{-----------------------------------------------}
 var
 	car: GameCar;
 	map: GameMap;
 	prop: GameProp;
+	ch: char;
 begin
 	clrscr;
+	randomize;
 	ScreenCheck;
-	{-----------------}
-	zeroing_all; { включает в себя нижние присваивания } {todo}
-	
-	car.Symb := 'I'; { Car settins }
-	
-	{car.CurX := ; todo
-	car.CurY := ; todo}
-
-	prop.Symb := '-'; { Prop settings }
-	prop.Size := 14;
-
-	{prop.HomeX := ; todo
-	prop.HomeY := ;  todo}
-
-	prop.CurX := prop.HomeX;
-	prop.CurY := prop.HomeY;
-
-	map.HomeX := (ScreenWidth - 32) div 2;
-	map.HomeY := 2;
-
-	map.CurX := map.HomeX;
-	map.CurY := map.HomeY;
-	{----------------------}
+	zeroing_all(map, car, prop);
 	StartMessage;
 	WantToPlay;
 	DrawMap(map);
+	MoveCar(car, map);
+	MoveProp(prop, map);
+	delay(2000);
+{---------------------------}
 	while true do
 	begin
-		break;
+		if not KeyPressed then
+		begin
+			delay(SpeedDelay); 
+			MoveProp(prop, map);
+			SpeedUp;
+			output_Driven;
+			CollisionChecker(car, prop);
+			continue;
+		end;
+		ch := ReadKey;
+		case ch of
+			#97: HandleArrowKey(car, map, ch);
+			#100: HandleArrowKey(car, map, ch);
+			#27: begin clrscr; halt(0); end;
+		end;
 	end;
 end.
