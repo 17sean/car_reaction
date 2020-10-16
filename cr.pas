@@ -1,5 +1,7 @@
 program CarReaction;
 uses crt;
+const
+	DrivenRecordFileName = 'record.bin';
 type
 	GameSide = (left, right);
 
@@ -22,9 +24,9 @@ type
 		Side: GameSide;
 	end;
 var
-	SpeedTarget: integer;
-	SpeedDelay: integer;
-	Driven: integer;
+	SpeedTarget, SpeedDelay: integer;
+	Driven, DrivenRecord: integer;
+	DrivenRecordFile: file of integer;
 
 procedure IOresult_check;
 var
@@ -113,6 +115,20 @@ end;
 
 procedure zeroing_all(var map: GameMap; var car: GameCar; var prop: GameProp); { Zeroing variables }
 begin
+	{$I-}
+	Driven := 0;
+	assign(DrivenRecordFile, DrivenRecordFileName);
+	reset(DrivenRecordFile);
+	if IOresult <> 0 then
+	begin
+		DrivenRecord := 0;
+		rewrite(DrivenRecordFile);
+		write(DrivenRecordFile, DrivenRecord);
+		seek(DrivenRecordFile, 0);
+	end;
+	read(DrivenRecordFile, DrivenRecord);
+	close(DrivenRecordFile);	
+
 	SpeedDelay := 100;
 	SpeedTarget := 100;
 
@@ -132,7 +148,7 @@ begin
 	prop.CurY := prop.HomeY; 
 	prop.Side := left;
 end;
-{--------------------------------------------------------}
+
 procedure DrawMap(var map: GameMap); { Drawing game map }
 var
 	i: integer;
@@ -151,7 +167,7 @@ begin
 		GotoXY(map.HomeX, map.CurY);
 	end;
 end;
-{-----------------------------------------------}
+
 procedure ShowCar(car: GameCar);
 begin
 	GotoXY(car.CurX, car.CurY);
@@ -193,7 +209,7 @@ begin
 	end;
 	MoveCar(car, map);
 end;
-{-----------------------------------------------}
+
 procedure ShowProp(prop: GameProp);
 var
 	i: integer;
@@ -223,7 +239,16 @@ begin
 	end;	
 	ShowProp(prop);
 end;
-{------------------------------------------------}
+
+procedure DrivenRecordCheck;
+begin
+	if Driven > DrivenRecord then
+	begin
+		rewrite(DrivenRecordFile);
+		write(DrivenRecordFile, Driven);
+	end;
+end;
+
 procedure CollisionChecker(car: GameCar; var prop: GameProp);
 var
 	x, y: integer;
@@ -241,8 +266,10 @@ begin
 			write('You driven: ', Driven, 'm');
 			y := y + 1;
 			GotoXY(x, y);
-			write('Enter to exit...');
-			readln;
+			DrivenRecordCheck;
+			write('Best record: ', DrivenRecord, 'm');
+			delay(2000);
+			clrscr;
 			halt(0);
 		end;
 	end;
@@ -258,8 +285,6 @@ begin
 		end;
  	end;
 end;
-
-{-----------------------------------------------}
 
 procedure SpeedUp;
 var
@@ -284,10 +309,12 @@ begin
 		y := 1;
 		GotoXY(x, y);
 		write('Driven: ', Driven, 'm');
+		y := y + 1;
+		GotoXY(x, y);
+		write('Best record: ', DrivenRecord, 'm');
 	end;
 end;
 
-{-----------------------------------------------}
 var
 	car: GameCar;
 	map: GameMap;
@@ -304,7 +331,7 @@ begin
 	MoveCar(car, map);
 	MoveProp(prop, map);
 	delay(2000);
-{---------------------------}
+	
 	while true do
 	begin
 		if not KeyPressed then
