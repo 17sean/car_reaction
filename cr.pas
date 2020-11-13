@@ -133,7 +133,7 @@ begin
 	SpeedTarget := 100;
 
 	map.HomeX := (ScreenWidth - 32) div 2;
-	map.HomeY := (ScreenHeight - 22) div 2;
+	map.HomeY := (ScreenHeight - 18) div 2;
 	map.CurX := map.HomeX;
 	map.CurY := map.HomeY;
 
@@ -323,7 +323,7 @@ var
 begin
 	clrscr;
 	randomize;
-	ScreenCheck;
+	{ScreenCheck;}
 	zeroing_all(map, car, prop);
 	StartMessage;
 	WantToPlay;
